@@ -220,28 +220,25 @@ async def find_and_delete_plus_users_comments(type: Literal['all_posts', 'one_po
             posts = await get_subsite_posts(subsite_id, token_manager)
             for post in posts:
                 post_id = post.get("id")
-                comments = await get_post_comments(post_id, token_manager)
-                for comment in comments:
-                    user_plus_status = comment.get("author", {}).get("isPlus")
-                    username = comment.get("author", {}).get("name", "Неизвестный")
-                    if user_plus_status:
-                        await send_comment(post_id, comment.get("id"), f"{username}, здесь богатеям с подпиской Plus не рады! Отмени свою подписку - тогда поговорим. \n AntiDTFPlus - 'Сейчас запрещу людям с подпиской Plus писать под моими постами, так Комитет сразу все бесплатные функции вернет...'", token_manager)
-                        await delete_comment(comment.get("id"), withThread=False, token_manager=token_manager)
-                        plus_comment_deleted_count += 1
+                plus_comment_deleted_count += await delete_all_comments_from_post(post_id,token_manager)
             return plus_comment_deleted_count
 
         case 'one_post':
-            logger.info("🔍 Поиск комментариев от Plus-пользователей в одном посте...")
-            comments = await get_post_comments(post_id, token_manager)
-            for comment in comments:
-                user_plus_status = comment.get("author", {}).get("isPlus")
-                username = comment.get("author", {}).get("name", "Неизвестный")
-                if user_plus_status:
-                    await send_comment(post_id, comment.get("id"), f"{username}, здесь богатеям с подпиской Plus не рады! Отмени свою подписку - тогда поговорим. \n AntiDTFPlus - 'Сейчас запрещу людям с подпиской Plus писать под моими постами, так Комитет сразу все бесплатные функции вернет...'", token_manager)
-                    await delete_comment(comment.get("id"), withThread=False, token_manager=token_manager)
-                    plus_comment_deleted_count += 1
-            return plus_comment_deleted_count
+            logger.info(f"🔍 Поиск комментариев от Plus-пользователей в посте {post_id}...")
+            return await delete_all_comments_from_post(post_id,token_manager)
 
         case _:
             logger.error("❌ Ошибка: Неверный тип поиска комментариев. Используйте 'all_posts' или 'one_post'.")
             return -1
+
+async def delete_all_comments_from_post(post_id: int, token_manager: TokenManager) -> int:
+    comment_deleted_count = 0
+    comments = await get_post_comments(post_id, token_manager)
+    for comment in comments:
+        user_plus_status = comment.get("author", {}).get("isPlus")
+        username = comment.get("author", {}).get("name", "Неизвестный")
+        if user_plus_status:
+            await send_comment(post_id, comment.get("id"), f"{username}, здесь богатеям с подпиской Plus не рады! Отмени свою подписку - тогда поговорим. \n AntiDTFPlus - 'Сейчас запрещу людям с подпиской Plus писать под моими постами, так Комитет сразу все бесплатные функции вернет...'", token_manager)
+            await delete_comment(comment.get("id"), withThread=False, token_manager=token_manager)
+            comment_deleted_count += 1
+    return comment_deleted_count
