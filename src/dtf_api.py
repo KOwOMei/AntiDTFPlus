@@ -93,6 +93,33 @@ class TokenManager:
                 logger.error("❌ TokenManager: Ошибка обновления токена. Попытка полного входа.")
                 await self.login()
 
+async def get_user_info(token_manager: TokenManager) -> dict:
+    """Получаем данные о пользователе, включая userHash и mHash."""
+    token_manager.refresh()  # Убедимся, что токены актуальны
+    access_token = token_manager.access_token
+    if not access_token:
+        logger.error("❌ get_user_info: Нет access_token.")
+        return None
+    
+    url = "https://api.dtf.ru/v2.31/subsite/me"
+    headers = {
+        "jwtauthorization": f"Bearer {access_token}",
+        "User-Agent": "Mozilla/5.0 (Android 14; Mobile; rv:137.0) Gecko/137.0 Firefox/137.0"
+    }
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.get(url, headers=headers)
+            response.raise_for_status()
+            # Извлекаем данные из правильного места в JSON
+            result_data = response.json().get("result", {})
+            logger.info("✅ Данные пользователя успешно получены.")
+            return result_data
+        
+        except Exception as e:
+            logger.error("❌ get_user_info: Ошибка при получении или парсинге данных: %s", e, exc_info=True)
+    
+    logger.error("❌ get_user_info: Не удалось получить информацию о пользователе.")
+    return None
 
 async def send_comment(post_id: int, reply_to_id: int, text: str, token_manager: TokenManager) -> None:
     """Отправляет комментарий к посту.
@@ -146,13 +173,13 @@ async def delete_comment(comment_id: int, withThread: bool, token_manager: Token
         else:
             logger.error(f"❌ Ошибка при удалении комментария {comment_id}: {response.text}")
             return False
-        
-async def get_subsite_posts(subsite_id: int, token_manager: TokenManager) -> list:
+
+async def get_subsite_posts(subsite_id: int, token_manager: TokenManager, lastId: int = 0, lastSortingValue: int = 0) -> list:
     """Получает список постов у подсайта/пользователя.
     :param subsite_id: ID подсайта/пользователя.
     :param token_manager: Экземпляр TokenManager для управления токенами.
     """
-    await token_manager.refresh()  # Убедимся, что токены актуальны
+    await token_manager.refresh()  # Убедимся, что токены актуальны         
     url = f"https://api.dtf.ru/v2.8/timeline"
     headers = {
         "Authorization": f"Bearer {token_manager.access_token}",
@@ -161,7 +188,9 @@ async def get_subsite_posts(subsite_id: int, token_manager: TokenManager) -> lis
     params = {
         "subsitesIds": subsite_id,
         "sorting": "new",
-        "markdown": "false"
+        "markdown": "false",
+        "lastId": lastId,
+        "lastSortingValue": lastSortingValue,
     }
 
     async with httpx.AsyncClient() as client:
@@ -217,7 +246,7 @@ async def find_and_delete_plus_users_comments(type: Literal['all_posts', 'one_po
     match type:
         case 'all_posts':
             logger.info("🔍 Поиск комментариев от Plus-пользователей во всех постах...")
-            posts = await get_subsite_posts(subsite_id, token_manager)
+            posts = await get_subsite_posts(subsite_id, token_manager=token_manager)
             for post in posts:
                 post_id = post.get("id")
                 plus_comment_deleted_count += await delete_all_comments_from_post(post_id,token_manager)

@@ -4,6 +4,7 @@ import sys
 import os
 import ctypes
 import win32serviceutil
+from ..dtf_api import TokenManager, find_and_delete_plus_users_comments
 
 class MainMenu(tk.Frame):
     def __init__(self, parent, controller):
@@ -17,7 +18,7 @@ class MainMenu(tk.Frame):
         button_select_post.pack(pady=10)
 
         button_select_post = ttk.Button(self, text="Удалить комментарии под всеми постами",
-                                        command=lambda: controller.show_frame("PostSelectionMenu"))
+                                        command=lambda: find_and_delete_plus_users_comments(controller.token_manager))
         button_select_post.pack(pady=10)
 
         button_install_service = ttk.Button(self, text="Установить службу автозапуска",
