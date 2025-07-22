@@ -1,10 +1,8 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-import win32service
-import win32serviceutil
-import ctypes
 import os
 import sys 
+import subprocess
 from ..dtf_api import find_and_delete_plus_users_comments
 
 class MainMenu(tk.Frame):
@@ -44,12 +42,6 @@ class MainMenu(tk.Frame):
         user_name = self.controller.user_name or "Пользователь"
         self.welcome_label.config(text=f"Приветствую, {user_name}!")
 
-    def is_admin(self):
-        try:
-            return ctypes.windll.shell32.IsUserAnAdmin()
-        except:
-            return False
-
     async def are_you_sure(self):
         if messagebox.askyesno("Подтверждение", "Вы уверены, что хотите удалить все комментарии от пользователей с подпиской DTF Plus ПОД ВСЕМИ ВАШИМИ ПОСТАМИ??? Это действие необратимо!"):
             plus_comments_deleted = await find_and_delete_plus_users_comments('all_posts', None, self.controller.user_id, self.controller.token_manager)
@@ -57,85 +49,62 @@ class MainMenu(tk.Frame):
         else:
             messagebox.showinfo("Отмена", "Удаление комментариев отменено.")
 
-    def _run_as_admin(self):
-        """Перезапускает приложение с правами администратора."""
-        if self.is_admin():
-            return True # Уже запущены с правами администратора
-
-        if messagebox.askyesno("Требуются права администратора", 
-                               "Для выполнения этого действия приложению требуются права администратора. "
-                               "Перезапустить приложение с запросом на повышение прав?"):
-            try:
-                # Используем системный вызов для перезапуска с запросом прав
-                ret_code = ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, " ".join(sys.argv), None, 1)
-                
-                if ret_code > 32:
-                    # Запрос на запуск был успешным, закрываем текущий процесс
-                    sys.exit(0) 
-                    return False # Возвращаем False, т.к. текущий процесс завершается
-                else:
-                    # Если код <= 32, произошла ошибка при попытке запуска
-                    messagebox.showerror("Ошибка", f"Не удалось запустить процесс с правами администратора. Код ошибки: {ret_code}")
-                    return False
-
-            except Exception as e:
-                messagebox.showerror("Ошибка", f"Не удалось перезапустить приложение с правами администратора:\n{e}")
-                return False
-        else:
-            return False # Пользователь отказался
-
     def install_service(self):
-        if not self._run_as_admin():
-            return
-
-        if messagebox.askyesno("Подтверждение", "Вы действительно хотите установить службу, которая будет запускаться вместе с Windows?"):
+        """Создает задачу в Планировщике заданий для автозапуска."""
+        # Права администратора больше не нужны для этой операции
+        if messagebox.askyesno("Подтверждение", "Вы хотите, чтобы программа автоматически запускалась в фоновом режиме при каждом входе в Windows?"):
             try:
-                # Шаг 1: Принудительная очистка старой службы (если она есть)
-                try:
-                    win32serviceutil.StopService('AntiDTFPlusService')
-                    win32serviceutil.RemoveService('AntiDTFPlusService')
-                    messagebox.showinfo("Очистка", "Обнаружена и удалена предыдущая версия службы.")
-                except Exception as e:
-                    if "The specified service does not exist" not in str(e):
-                        print(f"Предупреждение при очистке: {e}")
+                task_name = "AntiDTFPlusAutostart"
+                # Важно: мы запускаем тот же .exe, что и для службы, т.к. в нем нет GUI
+                program_path = os.path.abspath(os.path.join(os.path.dirname(sys.executable), "AntiDTFPlusServiceHandler.exe"))
 
-                # Шаг 2: Установка новой службы
-                service_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "auto_service.py"))
+                if not os.path.exists(program_path):
+                    messagebox.showerror("Ошибка", f"Не найден файл для автозапуска:\n{program_path}")
+                    return
+
+                # Команда для создания задачи в Планировщике
+                # /SC ONLOGON - запускать при входе пользователя
+                # /RL HIGHEST - с максимальными доступными правами
+                # /F - перезаписать, если задача уже существует
+                command = [
+                    'schtasks', '/create', '/tn', task_name, '/tr', f'"{program_path}"',
+                    '/sc', 'ONLOGON', '/rl', 'HIGHEST', '/f'
+                ]
                 
-                if not os.path.exists(service_file):
-                    messagebox.showerror("Ошибка", f"Файл службы не найден: {service_file}")
-                    return
+                # Запускаем команду без создания окна консоли
+                subprocess.run(command, check=True, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-                # Путь к обработчику службы, который лежит рядом с основным EXE
-                service_handler_path = os.path.abspath(os.path.join(os.path.dirname(sys.executable), "AntiDTFPlusServiceHandler.exe"))
+                # Запускаем службу сразу же, не дожидаясь перезагрузки
+                subprocess.Popen([program_path], creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NO_WINDOW)
+                
+                messagebox.showinfo("Успех", "Программа успешно добавлена в автозапуск.\nОна будет стартовать автоматически при следующем входе в систему.")
 
-                if not os.path.exists(service_handler_path):
-                    messagebox.showerror("Ошибка", f"Файл обработчика службы не найден: {service_handler_path}")
-                    return
-
-                win32serviceutil.InstallService(
-                    service_handler_path, # Указываем путь к нашему второму EXE
-                    'AntiDTFPlusService',
-                    'AntiDTFPlus Auto-Start Service',
-                    startType=win32service.SERVICE_AUTO_START
-                )
-                win32serviceutil.StartService('AntiDTFPlusService')
-                messagebox.showinfo("Успех", "Служба успешно установлена и запущена.")
+            except subprocess.CalledProcessError as e:
+                error_message = e.stderr.decode('cp866', errors='ignore')
+                messagebox.showerror("Ошибка", f"Не удалось создать задачу в автозапуске:\n{error_message}")
             except Exception as e:
-                messagebox.showerror("Ошибка установки", f"Не удалось установить службу:\n{e}")
-    
+                messagebox.showerror("Ошибка", f"Произошла непредвиденная ошибка:\n{e}")
+
     def uninstall_service(self):
-        if not self._run_as_admin():
-            return # Прерываем выполнение, если права не были получены
-
-        if messagebox.askyesno("Подтверждение", "Вы действительно хотите удалить службу?"):
+        """Удаляет задачу из Планировщика заданий."""
+        if messagebox.askyesno("Подтверждение", "Вы действительно хотите убрать программу из автозапуска?"):
             try:
-                win32serviceutil.StopService('AntiDTFPlusService')
-                win32serviceutil.RemoveService('AntiDTFPlusService')
-                messagebox.showinfo("Успех", "Служба успешно остановлена и удалена.")
-            except Exception as e:
-                # Игнорируем ошибку, если служба уже была удалена или не установлена
-                if "The specified service does not exist" in str(e):
-                     messagebox.showinfo("Информация", "Служба не была установлена.")
+                task_name = "AntiDTFPlusAutostart"
+                
+                # Команда для удаления задачи
+                command = ['schtasks', '/delete', '/tn', task_name, '/f']
+                
+                # Запускаем команду без создания окна консоли
+                subprocess.run(command, check=True, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                
+                messagebox.showinfo("Успех", "Программа успешно удалена из автозапуска.")
+
+            except subprocess.CalledProcessError as e:
+                error_message = e.stderr.decode('cp866', errors='ignore')
+                # Игнорируем ошибку, если задачи и так не было
+                if "не найдена" in error_message.lower() or "not found" in error_message.lower():
+                    messagebox.showinfo("Информация", "Программа и так не была в автозапуске.")
                 else:
-                    messagebox.showerror("Ошибка удаления", f"Не удалось удалить службу:\n{e}")
+                    messagebox.showerror("Ошибка", f"Не удалось удалить задачу из автозапуска:\n{error_message}")
+            except Exception as e:
+                messagebox.showerror("Ошибка", f"Произошла непредвиденная ошибка:\n{e}")

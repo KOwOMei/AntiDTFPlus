@@ -33,14 +33,7 @@ service_a = Analysis(
     pathex=[],
     binaries=[],
     datas=[('src/auto_service.py', 'src')],
-    hiddenimports=[
-        'win32service',
-        'win32serviceutil',
-        'win32event',
-        'servicemanager',
-        'pywintypes',
-        'win32timezone'
-    ],
+    hiddenimports=[],
     hookspath=[],
     runtime_hooks=[],
     excludes=['tkinter'],
@@ -60,5 +53,5 @@ service_exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=True
+    console=False
 )
