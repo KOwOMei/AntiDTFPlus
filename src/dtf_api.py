@@ -17,7 +17,7 @@ logging.getLogger().addHandler(file_handler)
 TOKEN_CACHE_FILE = "token_cache.json"
 
 class TokenManager:
-    def __init__(self, email, password):
+    def __init__(self, email: str | None = None, password: str | None = None):
         self.email = email
         self.password = password
         self.access_token = None
