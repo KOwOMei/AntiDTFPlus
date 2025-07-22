@@ -174,34 +174,60 @@ async def delete_comment(comment_id: int, withThread: bool, token_manager: Token
             logger.error(f"❌ Ошибка при удалении комментария {comment_id}: {response.text}")
             return False
 
-async def get_subsite_posts(subsite_id: int, token_manager: TokenManager, lastId: int = 0, lastSortingValue: int = 0) -> list:
-    """Получает список постов у подсайта/пользователя.
+async def get_subsite_posts(subsite_id: int, token_manager: TokenManager) -> list:
+    """
+    Получает список всех постов у подсайта/пользователя, используя итеративную загрузку.
     :param subsite_id: ID подсайта/пользователя.
     :param token_manager: Экземпляр TokenManager для управления токенами.
     """
-    await token_manager.refresh()  # Убедимся, что токены актуальны         
+    await token_manager.refresh()
+    
+    all_posts = []
+    lastId = 0
+    lastSortingValue = 0
+    
     url = f"https://api.dtf.ru/v2.8/timeline"
     headers = {
         "Authorization": f"Bearer {token_manager.access_token}",
         "User-Agent": "Mozilla/5.0 (Android 14; Mobile; rv:137.0) Gecko/137.0 Firefox/137.0"
     }
-    params = {
-        "subsitesIds": subsite_id,
-        "sorting": "new",
-        "markdown": "false",
-        "lastId": lastId,
-        "lastSortingValue": lastSortingValue,
-    }
 
+    logger.info(f"Начинаю загрузку постов для пользователя {subsite_id}...")
     async with httpx.AsyncClient() as client:
-        response = await client.get(url, headers=headers, params=params)
-        if response.status_code == 200:
-            data = response.json().get("result", []).get("items", [])
-            logger.info(f"✅ Получено {len(data)} постов с сабсайта {subsite_id}.")
-            return data
-        else:
-            logger.error(f"❌ Ошибка при получении постов с сабсайта {subsite_id}: {response.text}")
-            return []
+        while True:
+            params = {
+                "subsitesIds": subsite_id,
+                "sorting": "new",
+                "markdown": "false",
+                "lastId": lastId,
+                "lastSortingValue": lastSortingValue,
+            }
+            try:
+                response = await client.get(url, headers=headers, params=params)
+                response.raise_for_status()
+                
+                result = response.json().get("result", {})
+                posts = result.get("items", [])
+                
+                if not posts:
+                    logger.info("Больше постов не найдено, завершаю загрузку.")
+                    break
+                
+                all_posts.extend(posts)
+                logger.info(f"Загружено {len(all_posts)} постов...")
+
+                # Обновляем значения для следующей итерации
+                lastId = result.get("lastId")
+                lastSortingValue = result.get("lastSortingValue")
+
+            except httpx.HTTPStatusError as e:
+                logger.error(f"Ошибка при получении постов: {e.response.status_code} - {e.response.text}")
+                break
+            except Exception as e:
+                logger.error(f"Непредвиденная ошибка при загрузке постов: {e}", exc_info=True)
+                break
+                
+    return all_posts
 
 async def get_post_comments(post_id: int, token_manager: TokenManager) -> list:
     """Получает список комментариев к посту.
@@ -230,7 +256,8 @@ async def get_post_comments(post_id: int, token_manager: TokenManager) -> list:
             return []
 
 async def find_and_delete_plus_users_comments(type: Literal['all_posts', 'one_post'], post_id: int | None, subsite_id: int | None, token_manager: TokenManager) -> int:
-    """Ищет комментарии пользователей с подпиской Plus, после чего удаляем их.
+    """
+    Ищет комментарии пользователей с подпиской Plus, после чего удаляем их.
     :param type: Тип поиска комментариев ('all_posts' для всех постов или 'one_post' для одного поста).
     :param post_id: ID поста, если type='one_post'.
     :param subsite_id: ID подсайта, если type='all_posts'.
