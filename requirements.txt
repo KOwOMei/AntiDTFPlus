@@ -1,0 +1,5 @@
+httpx
+python-dotenv>=1.0.0
+aiohttp
+pywin32
+python-socketio[asyncio_client]<=4.6.1
