@@ -16,6 +16,7 @@ class App(tk.Tk):
         
         self.token_manager = TokenManager()
         self.user_id = None
+        self.user_name = None
 
         container = tk.Frame(self)
         container.pack(side="top", fill="both", expand=True)
@@ -34,8 +35,6 @@ class App(tk.Tk):
 
     async def try_auto_login(self):
         """Пытается войти, используя сохраненные токены."""
-        # Загружаем токены из кэша
-        self.token_manager._load_tokens_from_cache()
         if self.token_manager.refresh_token:
             # Если есть refresh_token, пытаемся обновить токен доступа
             await self.token_manager.refresh()
@@ -45,6 +44,7 @@ class App(tk.Tk):
             user_data = await get_user_info(self.token_manager)
             if user_data and 'id' in user_data:
                 self.user_id = user_data['id']
+                self.user_name = user_data.get('name', 'Неизвестный пользователь')
                 print(f"Автоматический вход успешен. User ID: {self.user_id}")
                 self.show_frame("MainMenu")
                 return
@@ -57,6 +57,8 @@ class App(tk.Tk):
     def show_frame(self, page_name):
         '''Показать окно по его имени'''
         frame = self.frames[page_name]
+        # Генерируем событие, чтобы окно знало, что его сейчас покажут
+        frame.event_generate("<<ShowFrame>>") 
         frame.tkraise()
 
 if __name__ == "__main__":

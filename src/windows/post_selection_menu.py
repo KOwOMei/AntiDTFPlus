@@ -58,7 +58,6 @@ class PostSelectionMenu(tk.Frame):
                 self.posts_listbox.insert(tk.END, "Ошибка: ID пользователя не найден.")
                 return
 
-            # Используем get_subsite_posts вместо get_user_posts
             self.posts = await get_subsite_posts(self.controller.user_id, self.controller.token_manager)
             
             self.posts_listbox.delete(0, tk.END) # Очищаем список
@@ -66,8 +65,8 @@ class PostSelectionMenu(tk.Frame):
                 self.posts_listbox.insert(tk.END, "Посты не найдены.")
             else:
                 for post in self.posts:
-                    # Убедимся, что у поста есть поле 'title'
-                    title = post.get('title', 'Пост без заголовка')
+                    # Убедимся, что у поста есть поле 'data'
+                    title = post.get('data', {}).get('title', 'Пост без заголовка')
                     self.posts_listbox.insert(tk.END, title)
         
         asyncio.run(task())

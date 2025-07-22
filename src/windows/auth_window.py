@@ -33,12 +33,32 @@ class AuthWindow(tk.Frame):
         token_frame.pack(pady=10, padx=20, fill="x")
 
         ttk.Label(token_frame, text="refreshToken:").pack(padx=10, pady=5, anchor="w")
-        self.refresh_token_entry = ttk.Entry(token_frame, show="*")
-        self.refresh_token_entry.pack(padx=10, pady=5, fill="x")
+
+        # Создаем вложенный фрейм, чтобы разместить поле и кнопку в одной строке
+        token_entry_frame = tk.Frame(token_frame)
+        token_entry_frame.pack(fill="x", padx=10, pady=(0, 5))
+
+        self.refresh_token_entry = ttk.Entry(token_entry_frame, show="*")
+        self.refresh_token_entry.pack(side="left", fill="x", expand=True)
         
+        paste_button = ttk.Button(token_entry_frame, text="Вставить", command=self.paste_token)
+        paste_button.pack(side="left", padx=(5, 0))
+
         refresh_token_button = ttk.Button(token_frame, text="Войти по токену",
                                           command=self.login_with_refresh_token)
         refresh_token_button.pack(pady=10, padx=10)
+
+    def paste_token(self):
+        """Вставляет текст из буфера обмена в поле для токена."""
+        try:
+            # Получаем содержимое буфера обмена
+            clipboard_content = self.clipboard_get()
+            # Очищаем поле и вставляем новое содержимое
+            self.refresh_token_entry.delete(0, tk.END)
+            self.refresh_token_entry.insert(0, clipboard_content)
+        except tk.TclError:
+            # Ошибка может возникнуть, если буфер обмена пуст
+            messagebox.showwarning("Буфер обмена", "Не удалось получить текст из буфера обмена.")
 
     def login_with_password(self):
         email = self.email_entry.get()
@@ -88,6 +108,7 @@ class AuthWindow(tk.Frame):
                 user_data = await get_user_info(self.controller.token_manager)
                 if user_data and 'id' in user_data:
                     self.controller.user_id = user_data['id']
+                    self.controller.user_name = user_data.get('name', 'Неизвестный пользователь')
                     # Сохраняем токен в кэш для будущих авто-входов
                     self.controller.token_manager._save_tokens_to_cache()
                     self.controller.show_frame("MainMenu")

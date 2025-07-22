@@ -95,7 +95,7 @@ class TokenManager:
 
 async def get_user_info(token_manager: TokenManager) -> dict:
     """Получаем данные о пользователе, включая userHash и mHash."""
-    token_manager.refresh()  # Убедимся, что токены актуальны
+    await token_manager.refresh()  # Убедимся, что токены актуальны
     access_token = token_manager.access_token
     if not access_token:
         logger.error("❌ get_user_info: Нет access_token.")
@@ -267,7 +267,6 @@ async def find_and_delete_plus_users_comments(type: Literal['all_posts', 'one_po
         logger.error("❌ Ошибка: Не указаны необходимые параметры для поиска комментариев.")
         return
     
-    await token_manager.refresh()  # Убедимся, что токены актуальны
     plus_comment_deleted_count = 0
 
     match type:

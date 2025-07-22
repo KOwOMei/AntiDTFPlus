@@ -94,7 +94,6 @@ async def main_async(stop_event):
     """
     logger.info("Запуск асинхронной части сервиса AntiDTFPlus...")
     token_manager = TokenManager()
-    token_manager._load_tokens_from_cache()
 
     if not token_manager.refresh_token:
         logger.error("RefreshToken не найден. Невозможно запустить сервис. Запустите GUI для входа.")

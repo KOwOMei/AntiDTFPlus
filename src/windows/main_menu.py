@@ -10,7 +10,7 @@ class MainMenu(tk.Frame):
     def __init__(self, parent, controller):
         super().__init__(parent)
         self.controller = controller
-        label = tk.Label(self, text="Основное меню", font=controller.title_font)
+        label = tk.Label(self, text=f"Приветствую, {controller.user_name}!", font=controller.title_font)
         label.pack(side="top", fill="x", pady=10)
 
         button_select_post = ttk.Button(self, text="Выбрать пост",
@@ -29,7 +29,7 @@ class MainMenu(tk.Frame):
                                              command=self.uninstall_service)
         button_uninstall_service.pack(pady=10)
 
-        button_logout = ttk.Button(self, text="Выйти",
+        button_logout = ttk.Button(self, text="Выйти из аккаунта",
                                    command=lambda: controller.show_frame("AuthWindow"))
         button_logout.pack()
 
