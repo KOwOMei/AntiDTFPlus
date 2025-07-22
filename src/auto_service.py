@@ -2,15 +2,14 @@ import asyncio
 import logging
 import socketio
 import os
-import threading
 import servicemanager
 import win32event
 import win32service
 import win32serviceutil
+import threading
 
 from .dtf_api import TokenManager, get_user_info, find_and_delete_plus_users_comments
 
-# Настройка логгера (важно для отладки службы)
 log_dir = os.path.join(os.path.expanduser("~"), ".antidtfplus")
 os.makedirs(log_dir, exist_ok=True)
 logging.basicConfig(
@@ -18,7 +17,7 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.FileHandler(os.path.join(log_dir, "service.log")),
-        logging.StreamHandler() # Вывод в консоль для отладки
+        logging.StreamHandler() 
     ]
 )
 logger = logging.getLogger(__name__)
@@ -101,7 +100,6 @@ async def main_async(stop_event):
 
     while not stop_event.is_set():
         try:
-            # Пытаемся обновить токен
             await token_manager.refresh()
             if not token_manager.access_token:
                 logger.error("Не удалось обновить токен. Повторная попытка через 5 минут.")
@@ -119,10 +117,8 @@ async def main_async(stop_event):
             
             logger.info(f"Получена информация для пользователя: {user_data.get('name')}")
 
-            # Создаем и запускаем наблюдатель
             watcher = WebSocketWatcher(token_manager, user_data)
             
-            # Запускаем watcher и ждем, пока он не завершится или не придет сигнал остановки
             watcher_task = asyncio.create_task(watcher.start())
             stop_wait_task = asyncio.create_task(asyncio.to_thread(stop_event.wait))
             
@@ -138,7 +134,7 @@ async def main_async(stop_event):
                 logger.info("Получен сигнал остановки сервиса.")
                 if watcher.sio.connected:
                     await watcher.sio.disconnect()
-                break # Выходим из цикла while
+                break 
 
         except Exception as e:
             logger.error(f"Произошла критическая ошибка в главном цикле: {e}", exc_info=True)
@@ -156,32 +152,37 @@ class AntiDTFPlusService(win32serviceutil.ServiceFramework):
         self.hWaitStop = win32event.CreateEvent(None, 0, 0, None)
         socketio.client.logger.setLevel(logging.WARNING)
         socketio.client.engineio.setLevel(logging.WARNING)
-        self.stop_requested = False
         self.stop_event = threading.Event()
+        self.thread = None
 
     def SvcStop(self):
         self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
+        logger.info('Получен сигнал остановки сервиса...')
         self.stop_event.set()
-        logger.info('Сигнал остановки получен.')
+        win32event.SetEvent(self.hWaitStop)
 
     def SvcDoRun(self):
         servicemanager.LogMsg(servicemanager.EVENTLOG_INFORMATION_TYPE,
                               servicemanager.PYS_SERVICE_STARTED,
                               (self._svc_name_, ''))
-        self.main()
+        
+        self.thread = threading.Thread(target=self.main_thread_func)
+        self.thread.start()
 
-    def main(self):
-        logger.info("Сервис запущен.")
+        logger.info('Сервис запущен, основной поток ожидает сигнала остановки.')
+        win32event.WaitForSingleObject(self.hWaitStop, win32event.INFINITE)
+        logger.info('Сигнал остановки обработан, завершаю SvcDoRun.')
+
+    def main_thread_func(self):
+        """Эта функция будет выполняться в отдельном потоке."""
+        logger.info("Запуск рабочего потока сервиса.")
         try:
-            # Запускаем асинхронную логику
             asyncio.run(main_async(self.stop_event))
         except Exception as e:
-            logger.error(f"Критическая ошибка при выполнении сервиса: {e}", exc_info=True)
+            logger.error(f"Критическая ошибка в рабочем потоке сервиса: {e}", exc_info=True)
         
-        logger.info("Сервис остановлен.")
+        logger.info("Рабочий поток сервиса завершен.")
 
 
 if __name__ == '__main__':
-    # Этот блок позволяет управлять службой из командной строки
-    # (install, start, stop, remove, debug)
     win32serviceutil.HandleCommandLine(AntiDTFPlusService)
