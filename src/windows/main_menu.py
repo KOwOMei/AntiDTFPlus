@@ -106,10 +106,17 @@ class MainMenu(tk.Frame):
                     messagebox.showerror("Ошибка", f"Файл службы не найден: {service_file}")
                     return
 
+                # Путь к обработчику службы, который лежит рядом с основным EXE
+                service_handler_path = os.path.abspath(os.path.join(os.path.dirname(sys.executable), "AntiDTFPlusServiceHandler.exe"))
+
+                if not os.path.exists(service_handler_path):
+                    messagebox.showerror("Ошибка", f"Файл обработчика службы не найден: {service_handler_path}")
+                    return
+
                 win32serviceutil.InstallService(
-                    pythonClassString=f"auto_service.AntiDTFPlusService",
-                    serviceName='AntiDTFPlusService',
-                    displayName='AntiDTFPlus Auto-Start Service',
+                    service_handler_path, # Указываем путь к нашему второму EXE
+                    'AntiDTFPlusService',
+                    'AntiDTFPlus Auto-Start Service',
                     startType=win32service.SERVICE_AUTO_START
                 )
                 win32serviceutil.StartService('AntiDTFPlusService')

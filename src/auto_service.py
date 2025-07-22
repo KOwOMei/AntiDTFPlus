@@ -9,17 +9,9 @@ import win32serviceutil
 import threading
 
 from .dtf_api import TokenManager, get_user_info, find_and_delete_plus_users_comments
+from .log_config import setup_logging
 
-log_dir = os.path.join(os.path.expanduser("~"), ".antidtfplus")
-os.makedirs(log_dir, exist_ok=True)
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler(os.path.join(log_dir, "service.log")),
-        logging.StreamHandler() 
-    ]
-)
+setup_logging()
 logger = logging.getLogger(__name__)
 
 class WebSocketWatcher:
