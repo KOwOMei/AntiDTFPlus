@@ -2,7 +2,7 @@
 
 
 a = Analysis(
-    ['src\\__main__.py'],
+    ['run.py'],
     pathex=[],
     binaries=[],
     datas=[('src/auto_service.py', 'src')],

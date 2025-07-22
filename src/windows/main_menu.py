@@ -1,8 +1,10 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
+import win32service
 import win32serviceutil
 import ctypes
 import os
+import sys 
 from ..dtf_api import find_and_delete_plus_users_comments
 
 class MainMenu(tk.Frame):
@@ -55,41 +57,69 @@ class MainMenu(tk.Frame):
         else:
             messagebox.showinfo("Отмена", "Удаление комментариев отменено.")
 
-    def install_service(self):
-        if not self.is_admin():
-            messagebox.showerror("Ошибка", "Для установки службы требуются права администратора. Перезапустите приложение от имени администратора.")
-            return
+    def _run_as_admin(self):
+        """Перезапускает приложение с правами администратора."""
+        if self.is_admin():
+            return True # Уже запущены с правами администратора
 
+        if messagebox.askyesno("Требуются права администратора", 
+                               "Для выполнения этого действия приложению требуются права администратора. "
+                               "Перезапустить приложение с запросом на повышение прав?"):
+            try:
+                # Используем системный вызов для перезапуска с запросом прав
+                ret_code = ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, " ".join(sys.argv), None, 1)
+                
+                if ret_code > 32:
+                    # Запрос на запуск был успешным, закрываем текущий процесс
+                    self.controller.destroy()
+                    return False # Возвращаем False, т.к. текущий процесс завершается
+                else:
+                    # Если код <= 32, произошла ошибка при попытке запуска
+                    messagebox.showerror("Ошибка", f"Не удалось запустить процесс с правами администратора. Код ошибки: {ret_code}")
+                    return False
+
+            except Exception as e:
+                messagebox.showerror("Ошибка", f"Не удалось перезапустить приложение с правами администратора:\n{e}")
+                return False
+        else:
+            return False # Пользователь отказался
+
+    def install_service(self):
+        if not self._run_as_admin():
+            return # Прерываем выполнение, если права не были получены
+
+        # Если мы здесь, значит, код уже выполняется с правами администратора
         if messagebox.askyesno("Подтверждение", "Вы действительно хотите установить службу, которая будет запускаться вместе с Windows?"):
             try:
-                # Путь к вашему интерпретатору Python и скрипту службы
-                # Важно: Создайте файл 'auto_service.py' из следующего шага
                 service_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "auto_service.py"))
                 
-                # Проверяем, существует ли файл службы
                 if not os.path.exists(service_file):
                     messagebox.showerror("Ошибка", f"Файл службы не найден: {service_file}")
                     return
 
-                # Установка службы
                 win32serviceutil.InstallService(
-                    pythonClassString=f"{os.path.splitext(os.path.basename(service_file))[0]}.MyService",
+                    pythonClassString=f"auto_service.AntiDTFPlusService",
                     serviceName='AntiDTFPlusService',
                     displayName='AntiDTFPlus Auto-Start Service',
-                    startType='auto' # Автоматический запуск
+                    startType=win32service.SERVICE_AUTO_START
                 )
-                messagebox.showinfo("Успех", "Служба успешно установлена и будет запускаться автоматически.")
+                win32serviceutil.StartService('AntiDTFPlusService')
+                messagebox.showinfo("Успех", "Служба успешно установлена и запущена.")
             except Exception as e:
                 messagebox.showerror("Ошибка установки", f"Не удалось установить службу:\n{e}")
     
     def uninstall_service(self):
-        if not self.is_admin():
-            messagebox.showerror("Ошибка", "Для удаления службы требуются права администратора. Перезапустите приложение от имени администратора.")
-            return
+        if not self._run_as_admin():
+            return # Прерываем выполнение, если права не были получены
 
         if messagebox.askyesno("Подтверждение", "Вы действительно хотите удалить службу?"):
             try:
+                win32serviceutil.StopService('AntiDTFPlusService')
                 win32serviceutil.RemoveService('AntiDTFPlusService')
-                messagebox.showinfo("Успех", "Служба успешно удалена.")
+                messagebox.showinfo("Успех", "Служба успешно остановлена и удалена.")
             except Exception as e:
-                messagebox.showerror("Ошибка удаления", f"Не удалось удалить службу:\n{e}")
+                # Игнорируем ошибку, если служба уже была удалена или не установлена
+                if "The specified service does not exist" in str(e):
+                     messagebox.showinfo("Информация", "Служба не была установлена.")
+                else:
+                    messagebox.showerror("Ошибка удаления", f"Не удалось удалить службу:\n{e}")
