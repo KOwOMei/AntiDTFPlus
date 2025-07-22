@@ -1,17 +1,18 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-import sys
-import os
-import ctypes
 import win32serviceutil
+import ctypes
+import os
 from ..dtf_api import find_and_delete_plus_users_comments
 
 class MainMenu(tk.Frame):
     def __init__(self, parent, controller):
         super().__init__(parent)
         self.controller = controller
-        label = tk.Label(self, text=f"Приветствую, {controller.user_name}!", font=controller.title_font)
-        label.pack(side="top", fill="x", pady=10)
+        
+        # Создаем Label, но пока с пустым текстом
+        self.welcome_label = tk.Label(self, text="Привет, Анон!", font=controller.title_font)
+        self.welcome_label.pack(side="top", fill="x", pady=10)
 
         button_select_post = ttk.Button(self, text="Выбрать пост",
                                         command=lambda: controller.show_frame("PostSelectionMenu"))
@@ -32,6 +33,14 @@ class MainMenu(tk.Frame):
         button_logout = ttk.Button(self, text="Выйти из аккаунта",
                                    command=lambda: controller.show_frame("AuthWindow"))
         button_logout.pack()
+
+        # Привязываем событие показа окна к обновлению текста
+        self.bind("<<ShowFrame>>", self.on_show_frame)
+
+    def on_show_frame(self, event):
+        """Обновляет приветственную надпись, когда окно становится видимым."""
+        user_name = self.controller.user_name or "Пользователь"
+        self.welcome_label.config(text=f"Приветствую, {user_name}!")
 
     def is_admin(self):
         try:

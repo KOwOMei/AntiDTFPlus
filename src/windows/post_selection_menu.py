@@ -79,7 +79,7 @@ class PostSelectionMenu(tk.Frame):
             return
         
         selected_index = selected_indices[0]
-        selected_post = self.posts[selected_index]
+        selected_post = self.posts[selected_index].get('data', {})
         post_id = selected_post.get('id')
         post_title = selected_post.get('title', 'Пост без заголовка')
 

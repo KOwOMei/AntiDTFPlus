@@ -36,11 +36,7 @@ class App(tk.Tk):
     async def try_auto_login(self):
         """Пытается войти, используя сохраненные токены."""
         if self.token_manager.refresh_token:
-            # Если есть refresh_token, пытаемся обновить токен доступа
-            await self.token_manager.refresh()
-        
-        if self.token_manager.access_token:
-            # Если токен доступа есть (после обновления или он был валиден), получаем данные пользователя
+            # Если токен обновления есть (после обновления или он был валиден), получаем данные пользователя
             user_data = await get_user_info(self.token_manager)
             if user_data and 'id' in user_data:
                 self.user_id = user_data['id']

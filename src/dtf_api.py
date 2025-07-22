@@ -127,10 +127,9 @@ async def send_comment(post_id: int, reply_to_id: int, text: str, token_manager:
     :param text: Текст комментария.
     :param token_manager: Экземпляр TokenManager для управления токенами.
     """
-    await token_manager.refresh()  # Убедимся, что токены актуальны
     url = f"https://api.dtf.ru/v2.4/comment/add"
     headers = {
-        "Authorization": f"Bearer {token_manager.access_token}",
+        "jwtauthorization": f"Bearer {token_manager.access_token}",
         "User-Agent": "Mozilla/5.0 (Android 14; Mobile; rv:137.0) Gecko/137.0 Firefox/137.0"
     }
     payload = {
@@ -155,10 +154,9 @@ async def delete_comment(comment_id: int, withThread: bool, token_manager: Token
     :param withThread: Удалять ли ветку комментариев.
     :param token_manager: Экземпляр TokenManager для управления токенами.
     """
-    await token_manager.refresh()  # Убедимся, что токены актуальны
     url = f"https://api.dtf.ru/v3.0/comments/{comment_id}"
     headers = {
-        "Authorization": f"Bearer {token_manager.access_token}",
+        "jwtauthorization": f"Bearer {token_manager.access_token}",
         "User-Agent": "Mozilla/5.0 (Android 14; Mobile; rv:137.0) Gecko/137.0 Firefox/137.0"
     }
     params = {
@@ -188,7 +186,7 @@ async def get_subsite_posts(subsite_id: int, token_manager: TokenManager) -> lis
     
     url = f"https://api.dtf.ru/v2.8/timeline"
     headers = {
-        "Authorization": f"Bearer {token_manager.access_token}",
+        "jwtauthorization": f"Bearer {token_manager.access_token}",
         "User-Agent": "Mozilla/5.0 (Android 14; Mobile; rv:137.0) Gecko/137.0 Firefox/137.0"
     }
 
@@ -237,7 +235,7 @@ async def get_post_comments(post_id: int, token_manager: TokenManager) -> list:
     await token_manager.refresh()  # Убедимся, что токены актуальны
     url = f"https://api.dtf.ru/v2.9/comments"
     headers = {
-        "Authorization": f"Bearer {token_manager.access_token}",
+        "jwtauthorization": f"Bearer {token_manager.access_token}",
         "User-Agent": "Mozilla/5.0 (Android 14; Mobile; rv:137.0) Gecko/137.0 Firefox/137.0"
     }
     params = {
