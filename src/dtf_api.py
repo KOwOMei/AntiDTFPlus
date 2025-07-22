@@ -7,14 +7,15 @@ from typing import Literal
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-# Настройка сохранения логов в файл
 file_handler = logging.FileHandler('app.log', encoding='utf-8')
 file_handler.setLevel(logging.INFO)
 log_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 file_handler.setFormatter(log_formatter)
 logging.getLogger().addHandler(file_handler)
 
-TOKEN_CACHE_FILE = "token_cache.json"
+APP_DATA_DIR = os.path.join(os.path.expanduser("~"), ".antidtfplus")
+os.makedirs(APP_DATA_DIR, exist_ok=True)
+TOKEN_CACHE_FILE = os.path.join(APP_DATA_DIR, "token_cache.json")
 
 class TokenManager:
     def __init__(self, email: str | None = None, password: str | None = None):

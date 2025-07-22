@@ -86,11 +86,20 @@ class MainMenu(tk.Frame):
 
     def install_service(self):
         if not self._run_as_admin():
-            return # Прерываем выполнение, если права не были получены
+            return
 
-        # Если мы здесь, значит, код уже выполняется с правами администратора
         if messagebox.askyesno("Подтверждение", "Вы действительно хотите установить службу, которая будет запускаться вместе с Windows?"):
             try:
+                # Шаг 1: Принудительная очистка старой службы (если она есть)
+                try:
+                    win32serviceutil.StopService('AntiDTFPlusService')
+                    win32serviceutil.RemoveService('AntiDTFPlusService')
+                    messagebox.showinfo("Очистка", "Обнаружена и удалена предыдущая версия службы.")
+                except Exception as e:
+                    if "The specified service does not exist" not in str(e):
+                        print(f"Предупреждение при очистке: {e}")
+
+                # Шаг 2: Установка новой службы
                 service_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "auto_service.py"))
                 
                 if not os.path.exists(service_file):
