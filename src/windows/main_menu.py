@@ -14,11 +14,11 @@ class MainMenu(tk.Frame):
         self.welcome_label = tk.Label(self, text="Привет, Анон!", font=controller.title_font)
         self.welcome_label.pack(side="top", fill="x", pady=10)
 
-        button_select_post = ttk.Button(self, text="Выбрать пост",
+        button_select_post = ttk.Button(self, text="Удалить комментарии от Plus-подписчиков в определенном посте",
                                         command=lambda: controller.show_frame("PostSelectionMenu"))
         button_select_post.pack(pady=10)
 
-        button_all_posts = ttk.Button(self, text="Удалить Plus-комментарии под всеми постами",
+        button_all_posts = ttk.Button(self, text="Удалить комментарии от Plus-подписчиков под всеми постами",
                                        command=self.are_you_sure)
         button_all_posts.pack(pady=10)
 

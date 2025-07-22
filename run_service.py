@@ -3,28 +3,41 @@ with open("find_me_in_system.txt", "w") as f:
     
 import sys
 import os
+import asyncio
 
 # --- НАЧАЛО: КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ РАБОЧЕЙ ДИРЕКТОРИИ ---
-# Этот блок должен быть самым первым, до всех остальных импортов.
+# Этот блок должен быть самым первым.
 if getattr(sys, 'frozen', False):
-    # Если приложение "заморожено" PyInstaller, то мы определяем путь к .exe
-    application_path = os.path.dirname(sys.executable)
-    # и меняем текущую рабочую директорию на директорию с .exe
-    os.chdir(application_path)
+    # Если приложение "заморожено", меняем рабочую директорию
+    # на ту, где лежит сам .exe файл.
+    try:
+        application_path = os.path.dirname(sys.executable)
+        os.chdir(application_path)
+    except Exception as e:
+        # Если не удалось сменить директорию, это критично.
+        # Можно добавить запись в лог, если необходимо.
+        print(f"Fatal: Could not change directory. Error: {e}")
+        sys.exit(1)
 # --- КОНЕЦ ИСПРАВЛЕНИЯ ---
-
-import win32serviceutil
 
 # Этот блок исправляет пути импорта, когда приложение "заморожено" PyInstaller.
 if getattr(sys, 'frozen', False):
-    # sys._MEIPASS - это путь к временной папке, куда PyInstaller распаковывает все файлы
     base_path = sys._MEIPASS
     sys.path.append(base_path)
 
-# Теперь, когда пути исправлены, можно импортировать класс службы
-from src.auto_service import AntiDTFPlusService
+# Теперь импортируем только то, что нужно для запуска
+from src.auto_service import main_async
 
+# --- НОВЫЙ БЛОК ЗАПУСКА ---
+# Этот код будет выполняться, когда Task Scheduler запустит .exe
 if __name__ == '__main__':
-    # Эта функция из pywin32 обрабатывает аргументы командной строки
-    # (install, start, stop, debug и т.д.) и запускает службу.
-    win32serviceutil.HandleCommandLine(AntiDTFPlusService)
+    try:
+        # Просто запускаем основную асинхронную функцию
+        asyncio.run(main_async())
+    except KeyboardInterrupt:
+        # Это полезно для отладки из командной строки
+        print("Процесс прерван пользователем.")
+    except Exception as e:
+        # Логирование критической ошибки
+        # (Логгер настраивается внутри auto_service.py)
+        print(f"Фатальная ошибка в приложении: {e}")

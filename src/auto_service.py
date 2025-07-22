@@ -81,10 +81,10 @@ async def main_async():
 
         await token_manager.refresh()
         user_data = await get_user_info(token_manager)
-        user_hash = user_data.get('user_hash')
+        user_hash = user_data.get('userHash')
 
         if not user_hash:
-            logger.error(f"Не удалось получить 'user_hash': {user_data}")
+            logger.error(f"Не удалось получить 'userHash': {user_data}")
             return
         
         logger.info(f"Успешно получены данные для пользователя: {user_data.get('name')}")
