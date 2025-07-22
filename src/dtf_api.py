@@ -139,7 +139,7 @@ async def send_comment(post_id: int, reply_to_id: int, text: str, token_manager:
     }
 
     async with httpx.AsyncClient() as client:
-        response = await client.post(url, json=payload, headers=headers)
+        response = await client.post(url, data=payload, headers=headers)
         if response.status_code == 200:
             comment_id = response.json().get("result", {}).get("id")
             logger.info(f"✅ Комментарий успешно отправлен с ID {comment_id}.")

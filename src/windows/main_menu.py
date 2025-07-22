@@ -32,7 +32,7 @@ class MainMenu(tk.Frame):
 
         button_logout = ttk.Button(self, text="Выйти из аккаунта",
                                    command=lambda: controller.show_frame("AuthWindow"))
-        button_logout.pack()
+        button_logout.pack(pady=10)
 
         # Привязываем событие показа окна к обновлению текста
         self.bind("<<ShowFrame>>", self.on_show_frame)
