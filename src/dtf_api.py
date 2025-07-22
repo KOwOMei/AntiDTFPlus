@@ -5,17 +5,21 @@ import httpx
 import logging
 from typing import Literal
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-file_handler = logging.FileHandler('app.log', encoding='utf-8')
-file_handler.setLevel(logging.INFO)
-log_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-file_handler.setFormatter(log_formatter)
-logging.getLogger().addHandler(file_handler)
-
 APP_DATA_DIR = os.path.join(os.path.expanduser("~"), ".antidtfplus")
 os.makedirs(APP_DATA_DIR, exist_ok=True)
 TOKEN_CACHE_FILE = os.path.join(APP_DATA_DIR, "token_cache.json")
+
+log_file_path = os.path.join(APP_DATA_DIR, "app.log")
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(log_file_path, encoding='utf-8'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
 
 class TokenManager:
     def __init__(self, email: str | None = None, password: str | None = None):

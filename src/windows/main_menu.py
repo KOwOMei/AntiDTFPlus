@@ -71,7 +71,7 @@ class MainMenu(tk.Frame):
                 
                 if ret_code > 32:
                     # Запрос на запуск был успешным, закрываем текущий процесс
-                    self.controller.destroy()
+                    sys.exit(0)
                     return False # Возвращаем False, т.к. текущий процесс завершается
                 else:
                     # Если код <= 32, произошла ошибка при попытке запуска
