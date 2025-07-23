@@ -3,6 +3,7 @@ from tkinter import ttk, messagebox
 import os
 import sys 
 import subprocess
+import ctypes  # <-- Добавьте этот импорт
 from ..dtf_api import find_and_delete_plus_users_comments
 
 class MainMenu(tk.Frame):
@@ -34,7 +35,6 @@ class MainMenu(tk.Frame):
                                    command=lambda: controller.show_frame("AuthWindow"))
         button_logout.pack(pady=10)
 
-        # Привязываем событие показа окна к обновлению текста
         self.bind("<<ShowFrame>>", self.on_show_frame)
 
     def on_show_frame(self, event):
@@ -49,9 +49,39 @@ class MainMenu(tk.Frame):
         else:
             messagebox.showinfo("Отмена", "Удаление комментариев отменено.")
 
+    def is_admin(self):
+        """Проверяет, запущено ли приложение с правами администратора."""
+        try:
+            return ctypes.windll.shell32.IsUserAnAdmin()
+        except:
+            return False
+
+    def _run_as_admin(self):
+        """
+        Проверяет права администратора. Если их нет, предлагает перезапустить
+        приложение с повышенными правами.
+        Возвращает True, если права есть, и False, если нет.
+        """
+        if self.is_admin():
+            return True
+        
+        if messagebox.askyesno(
+            "Требуются права администратора",
+            "Для этой операции требуются права администратора.\n\n"
+            "Перезапустить приложение с запросом прав?"
+        ):
+            try:
+                ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, " ".join(sys.argv), None, 1)
+                sys.exit(0) 
+            except Exception as e:
+                messagebox.showerror("Ошибка", f"Не удалось перезапустить приложение:\n{e}")
+        return False
+
     def install_service(self):
         """Создает задачу в Планировщике заданий для автозапуска."""
-        # Права администратора больше не нужны для этой операции
+        if not self._run_as_admin():
+            return 
+
         if messagebox.askyesno("Подтверждение", "Вы хотите, чтобы программа автоматически запускалась в фоновом режиме при каждом входе в Windows?"):
             try:
                 task_name = "AntiDTFPlusAutostart"
@@ -87,6 +117,9 @@ class MainMenu(tk.Frame):
 
     def uninstall_service(self):
         """Удаляет задачу из Планировщика заданий."""
+        if not self._run_as_admin():
+            return
+
         if messagebox.askyesno("Подтверждение", "Вы действительно хотите убрать программу из автозапуска?"):
             try:
                 task_name = "AntiDTFPlusAutostart"
